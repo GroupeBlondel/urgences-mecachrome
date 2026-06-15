@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mecachrome — Urgences</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #0D1B3E;
+    --blue:    #1B5EA6;
+    --blue-l:  #D6E8FA;
+    --orange:  #C45911;
+    --orange-l:#FCE4D6;
+    --green:   #1E7145;
+    --red:     #C0392B;
+    --red-l:   #FADBD8;
+    --yellow-l:#FEF9E7;
+    --green-l: #D5F5E3;
+    --gray:    #F4F6F9;
+    --gray2:   #E8ECF1;
+    --muted:   #6C757D;
+    --white:   #FFFFFF;
+    --input:   #EBF4FF;
+    --text:    #1A1A2E;
+  }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--gray);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── NAV ── */
+  nav {
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .nav-logo {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .nav-logo span { color: var(--blue-l); }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .5px;
+  }
+  .nav-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .nav-tab.active { background: var(--blue); color: #fff; }
+  .nav-tab.orange.active { background: var(--orange); }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 32px 24px; max-width: 800px; margin: 0 auto; }
+  .page.active { display: block; }
+  .page-full { display: none; padding: 24px; }
+  .page-full.active { display: block; }
+
+  /* ── FORMULAIRE ── */
+  .form-card {
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .form-header {
+    background: var(--navy);
+    padding: 28px 32px;
+    color: #fff;
+  }
+  .form-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .form-header p { font-size: 13px; color: var(--blue-l); }
+
+  .form-body { padding: 24px 32px; }
+
+  .form-section {
+    margin-bottom: 24px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--gray2);
+  }
+  .form-section-title {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .form-section-title.blue  { background: var(--blue); }
+  .form-section-title.navy  { background: #14478C; }
+  .form-section-title.orange{ background: var(--orange); }
+  .form-section-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .req-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--red);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .opt-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    border: 2px solid var(--muted);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .field input, .field select {
+    border: 2px solid var(--gray2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--white);
+    color: var(--text);
+    transition: border-color .2s, background .2s;
+    outline: none;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--blue);
+    background: var(--input);
+  }
+  .field input.error { border-color: var(--red); background: var(--red-l); }
+  .field .hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .section-hidden { display: none; }
+
+  .btn-send {
+    width: 100%;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background .2s, transform .1s;
+    letter-spacing: .5px;
+  }
+  .btn-send:hover { background: #155a37; }
+  .btn-send:active { transform: scale(0.99); }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--green);
+    color: #fff;
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transition: transform .3s ease;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── ÉCRANS BLONDEL ── */
+  .screen-header {
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .screen-header h2 { font-size: 20px; font-weight: 700; color: var(--navy); }
+  .screen-header .count {
+    background: var(--red-l);
+    color: var(--red);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 50px;
+  }
+  .screen-header .count.none {
+    background: var(--green-l);
+    color: var(--green);
+  }
+
+  .table-wrap {
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin: 0 24px 24px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--navy); }
+  thead th {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    padding: 14px 16px;
+    text-align: left;
+  }
+  tbody tr { border-bottom: 1px solid var(--gray2); transition: background .15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--gray); }
+  tbody tr.done { opacity: .45; }
+  tbody td {
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge.red    { background: var(--red-l);    color: var(--red); }
+  .badge.yellow { background: var(--yellow-l); color: #784212; }
+  .badge.green  { background: var(--green-l);  color: var(--green); }
+  .badge::before { content: '●'; font-size: 8px; }
+
+  .statut-sel {
+    border: 1px solid var(--gray2);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--white);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+
+  .time-badge {
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 600px) {
+    .field-row { grid-template-columns: 1fr; }
+    .page { padding: 16px; }
+    .form-body { padding: 16px; }
+    nav { padding: 0 12px; }
+    .nav-logo { font-size: 13px; }
+    .nav-tab { padding: 6px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">MECA<span>CHROME</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('formulaire')">Formulaire MK</button>
+    <button class="nav-tab orange" onclick="showPage('reception')">📥 Réception</button>
+    <button class="nav-tab orange" onclick="showPage('expedition')">📤 Expédition</button>
+  </div>
+</nav>
+
+<!-- ══ PAGE FORMULAIRE ══════════════════════════════════ -->
+<div id="page-formulaire" class="page active">
+  <div class="form-card">
+    <div class="form-header">
+      <h1>Demande d'urgence</h1>
+      <p>Remplissez le formulaire et cliquez sur Envoyer</p>
+    </div>
+    <div class="form-body">
+
+      <div class="legend">
+        <span><span class="req-dot"></span> Champ obligatoire</span>
+        <span><span class="opt-dot"></span> Champ facultatif</span>
+      </div>
+
+      <!-- Infos générales -->
+      <div class="form-section">
+        <div class="form-section-title blue">① Informations générales</div>
+        <div class="form-section-body">
+          <div class="field">
+            <label><span class="req-dot"></span> Type de demande</label>
+            <select id="f-type" onchange="toggleSections()">
+              <option value="">-- Choisir --</option>
+              <option value="Reception">Réception</option>
+              <option value="Expedition">Expédition</option>
+            </select>
+          </div>
+          <div class="field">
+            <label><span class="req-dot"></span> Opérateur MK</label>
+            <input id="f-oper" type="text" placeholder="Votre prénom et nom">
+          </div>
+        </div>
+      </div>
+
+      <!-- Réception -->
+      <div class="form-section section-hidden" id="section-rec">
+        <div class="form-section-title navy">② Réception</div>
+        <div class="form-section-body">
+          <div class="field-row">
+            <div class="field">
+              <label><span class="req-dot"></span> CFR (commande)</label>
+              <input id="f-cfr" type="text" placeholder="Ex : CFR-12345">
+            </div>
+            <div class="field">
+              <label><span class="req-dot"></span> STT / FRS</label>
+              <input id="f-stt" type="text" placeholder="Ex : STT001">
+            </div>
+          </div>
+          <div class="field">
+            <label><span class="opt-dot"></span> OF (ordre de fabrication)</label>
+            <input id="f-ofr" type="text" placeholder="Facultatif">
+          </div>
+        </div>
+      </div>
+
+      <!-- Expédition -->
+      <div class="form-section section-hidden" id="section-exp">
+        <div class="form-section-title orange">③ Expédition</div>
+        <div class="form-section-body">
+          <div class="field-row">
+            <div class="field">
+              <label><span class="req-dot"></span> CDECLI ou CFR</label>
+              <input id="f-cde" type="text" placeholder="Ex : CDE5566">
+            </div>
+            <div class="field">
+              <label><span class="req-dot"></span> Destinataire</label>
+              <input id="f-dest" type="text" placeholder="Nom client / site">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label><span class="req-dot"></span> Mode d'expédition</label>
+              <select id="f-mode">
+                <option value="">-- Choisir --</option>
+                <option>Top H</option>
+                <option>Navette</option>
+                <option>DHL</option>
+                <option>Autre</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><span class="opt-dot"></span> BL</label>
+              <input id="f-bl" type="text" placeholder="Facultatif">
+            </div>
+          </div>
+          <div class="field">
+            <label><span class="opt-dot"></span> OF (ordre de fabrication)</label>
+            <input id="f-ofe" type="text" placeholder="Facultatif">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-send" onclick="envoyer()">✔ Envoyer la demande</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE RÉCEPTION ═══════════════════════════════════ -->
+<div id="page-reception" class="page-full">
+  <div class="screen-header">
+    <h2>📥 Urgences Réception</h2>
+    <span class="count" id="count-rec">0 en attente</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date & Heure</th>
+          <th>Opérateur MK</th>
+          <th>CFR</th>
+          <th>STT / FRS</th>
+          <th>OF</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-rec"></tbody>
+    </table>
+    <div id="empty-rec" class="empty-state" style="display:none">
+      <div class="icon">✅</div>
+      <p>Aucune urgence en cours</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE EXPÉDITION ══════════════════════════════════ -->
+<div id="page-expedition" class="page-full">
+  <div class="screen-header">
+    <h2>📤 Urgences Expédition</h2>
+    <span class="count" id="count-exp">0 en attente</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date & Heure</th>
+          <th>Opérateur MK</th>
+          <th>CDECLI / CFR</th>
+          <th>OF</th>
+          <th>BL</th>
+          <th>Destinataire</th>
+          <th>Mode</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-exp"></tbody>
+    </table>
+    <div id="empty-exp" class="empty-state" style="display:none">
+      <div class="icon">✅</div>
+      <p>Aucune urgence en cours</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STORAGE ─────────────────────────────────────────────
+const STORE_REC = 'mk_urgences_rec';
+const STORE_EXP = 'mk_urgences_exp';
+
+function getData(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; }
+  catch(e) { return []; }
+}
+function setData(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// ── NAVIGATION ───────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page, .page-full').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  
+  if (name === 'formulaire') {
+    document.getElementById('page-formulaire').classList.add('active');
+    document.querySelectorAll('.nav-tab')[0].classList.add('active');
+  } else if (name === 'reception') {
+    document.getElementById('page-reception').classList.add('active');
+    document.querySelectorAll('.nav-tab')[1].classList.add('active');
+    renderReception();
+  } else if (name === 'expedition') {
+    document.getElementById('page-expedition').classList.add('active');
+    document.querySelectorAll('.nav-tab')[2].classList.add('active');
+    renderExpedition();
+  }
+}
+
+// ── TOGGLE SECTIONS ──────────────────────────────────────
+function toggleSections() {
+  const typ = document.getElementById('f-type').value;
+  document.getElementById('section-rec').className = 'form-section' + (typ === 'Reception' ? '' : ' section-hidden');
+  document.getElementById('section-exp').className = 'form-section' + (typ === 'Expedition' ? '' : ' section-hidden');
+}
+
+// ── VALIDATION ───────────────────────────────────────────
+function markError(id) {
+  const el = document.getElementById(id);
+  el.classList.add('error');
+  el.focus();
+  return false;
+}
+function clearErrors() {
+  document.querySelectorAll('.error').forEach(e => e.classList.remove('error'));
+}
+
+// ── ENVOI ────────────────────────────────────────────────
+function envoyer() {
+  clearErrors();
+  const typ  = document.getElementById('f-type').value;
+  const oper = document.getElementById('f-oper').value.trim();
+
+  if (!typ)  return markError('f-type');
+  if (!oper) return markError('f-oper');
+
+  const now = new Date();
+  const date = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+  if (typ === 'Reception') {
+    const cfr = document.getElementById('f-cfr').value.trim();
+    const stt = document.getElementById('f-stt').value.trim();
+    const ofr = document.getElementById('f-ofr').value.trim();
+    if (!cfr) return markError('f-cfr');
+    if (!stt) return markError('f-stt');
+
+    const data = getData(STORE_REC);
+    data.unshift({ id: Date.now(), date, oper, cfr, stt, ofr, statut: 'A traiter' });
+    setData(STORE_REC, data);
+    showToast('Demande Réception envoyée !');
+
+  } else {
+    const cde  = document.getElementById('f-cde').value.trim();
+    const dest = document.getElementById('f-dest').value.trim();
+    const mode = document.getElementById('f-mode').value;
+    const bl   = document.getElementById('f-bl').value.trim();
+    const ofe  = document.getElementById('f-ofe').value.trim();
+    if (!cde)  return markError('f-cde');
+    if (!dest) return markError('f-dest');
+    if (!mode) return markError('f-mode');
+
+    const data = getData(STORE_EXP);
+    data.unshift({ id: Date.now(), date, oper, cde, ofe, bl, dest, mode, statut: 'A traiter' });
+    setData(STORE_EXP, data);
+    showToast('Demande Expédition envoyée !');
+  }
+
+  // Vider
+  ['f-type','f-oper','f-cfr','f-stt','f-ofr','f-cde','f-dest','f-mode','f-bl','f-ofe']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  toggleSections();
+}
+
+// ── RENDER RÉCEPTION ─────────────────────────────────────
+function renderReception() {
+  const data = getData(STORE_REC);
+  const tbody = document.getElementById('tbody-rec');
+  const empty = document.getElementById('empty-rec');
+  const countEl = document.getElementById('count-rec');
+
+  const pending = data.filter(d => d.statut !== 'Traite').length;
+  countEl.textContent = pending + ' en attente';
+  countEl.className = 'count' + (pending === 0 ? ' none' : '');
+
+  if (data.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = data.map(d => `
+    <tr class="${d.statut === 'Traite' ? 'done' : ''}">
+      <td>${d.date}</td>
+      <td><strong>${d.oper}</strong></td>
+      <td><strong>${d.cfr}</strong></td>
+      <td>${d.stt}</td>
+      <td>${d.ofr || '—'}</td>
+      <td>
+        <select class="statut-sel" onchange="updateStatut('rec', ${d.id}, this.value)">
+          <option value="A traiter"  ${d.statut==='A traiter'  ? 'selected':''}>🔴 A traiter</option>
+          <option value="En cours"   ${d.statut==='En cours'   ? 'selected':''}>🟡 En cours</option>
+          <option value="Traite"     ${d.statut==='Traite'     ? 'selected':''}>✅ Traité</option>
+        </select>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── RENDER EXPÉDITION ────────────────────────────────────
+function renderExpedition() {
+  const data = getData(STORE_EXP);
+  const tbody = document.getElementById('tbody-exp');
+  const empty = document.getElementById('empty-exp');
+  const countEl = document.getElementById('count-exp');
+
+  const pending = data.filter(d => d.statut !== 'Traite').length;
+  countEl.textContent = pending + ' en attente';
+  countEl.className = 'count' + (pending === 0 ? ' none' : '');
+
+  if (data.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = data.map(d => `
+    <tr class="${d.statut === 'Traite' ? 'done' : ''}">
+      <td>${d.date}</td>
+      <td><strong>${d.oper}</strong></td>
+      <td><strong>${d.cde}</strong></td>
+      <td>${d.ofe || '—'}</td>
+      <td>${d.bl  || '—'}</td>
+      <td>${d.dest}</td>
+      <td><span class="badge red">${d.mode}</span></td>
+      <td>
+        <select class="statut-sel" onchange="updateStatut('exp', ${d.id}, this.value)">
+          <option value="A traiter" ${d.statut==='A traiter' ? 'selected':''}>🔴 A traiter</option>
+          <option value="En cours"  ${d.statut==='En cours'  ? 'selected':''}>🟡 En cours</option>
+          <option value="Traite"    ${d.statut==='Traite'    ? 'selected':''}>✅ Traité</option>
+        </select>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── MISE À JOUR STATUT ───────────────────────────────────
+function updateStatut(type, id, val) {
+  const key = type === 'rec' ? STORE_REC : STORE_EXP;
+  const data = getData(key);
+  const item = data.find(d => d.id === id);
+  if (item) { item.statut = val; setData(key, data); }
+  if (type === 'rec') renderReception();
+  else renderExpedition();
+}
+
+// ── TOAST ────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '✔ ' + msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ─────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('page-formulaire').classList.contains('active')) {
+    envoyer();
+  }
+});
+</script>
+</body>
+</html>
