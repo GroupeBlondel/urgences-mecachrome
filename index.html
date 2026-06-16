@@ -388,7 +388,7 @@ onValue(refRec, snap => {
   document.getElementById('table-rec').style.display = 'table';
   const data = [];
   snap.forEach(child => data.push({ key: child.key, ...child.val() }));
-  data.sort((a,b) => b.key.localeCompare(a.key));
+  data.sort((a,b) => String(b.key).localeCompare(String(a.key)));
 
   const pending = data.filter(d => d.statut !== 'Traite').length;
   const countEl = document.getElementById('count-rec');
@@ -397,28 +397,58 @@ onValue(refRec, snap => {
 
   const tbody = document.getElementById('tbody-rec');
   const empty = document.getElementById('empty-rec');
+  tbody.innerHTML = '';
+
   if (data.length === 0) {
-    tbody.innerHTML = '';
     empty.style.display = 'block';
-    document.getElementById('table-rec').style.display = 'none';
     return;
   }
   empty.style.display = 'none';
-  tbody.innerHTML = data.map(d => `
-    <tr class="${d.statut==='Traite' ? 'done' : ''}">
-      <td>${d.date}</td>
-      <td><strong>${d.oper}</strong></td>
-      <td><strong>${d.cfr}</strong></td>
-      <td>${d.stt}</td>
-      <td>${d.ofr||'—'}</td>
-      <td>
-        <select class="statut-sel" onchange="updateStatut('rec','${d.key}',this.value)">
-          <option value="A traiter" ${d.statut==='A traiter'?'selected':''}>🔴 A traiter</option>
-          <option value="En cours"  ${d.statut==='En cours' ?'selected':''}>🟡 En cours</option>
-          <option value="Traite"    ${d.statut==='Traite'   ?'selected':''}>✅ Traité</option>
-        </select>
-      </td>
-    </tr>`).join('');
+
+  data.forEach(d => {
+    const tr = document.createElement('tr');
+    if (d.statut === 'Traite') tr.className = 'done';
+
+    const tdDate = document.createElement('td');
+    tdDate.textContent = d.date || '';
+    tr.appendChild(tdDate);
+
+    const tdOper = document.createElement('td');
+    const strOper = document.createElement('strong');
+    strOper.textContent = d.oper || '';
+    tdOper.appendChild(strOper);
+    tr.appendChild(tdOper);
+
+    const tdCfr = document.createElement('td');
+    const strCfr = document.createElement('strong');
+    strCfr.textContent = d.cfr || '';
+    tdCfr.appendChild(strCfr);
+    tr.appendChild(tdCfr);
+
+    const tdStt = document.createElement('td');
+    tdStt.textContent = d.stt || '';
+    tr.appendChild(tdStt);
+
+    const tdOfr = document.createElement('td');
+    tdOfr.textContent = d.ofr || '\u2014';
+    tr.appendChild(tdOfr);
+
+    const tdStatut = document.createElement('td');
+    const sel = document.createElement('select');
+    sel.className = 'statut-sel';
+    sel.addEventListener('change', () => updateStatut('rec', d.key, sel.value));
+    ['A traiter','En cours','Traite'].forEach(val => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = (val==='A traiter'?'\ud83d\udd34 ':val==='En cours'?'\ud83d\udfe1 ':'\u2705 ') + val;
+      if (d.statut === val) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    tdStatut.appendChild(sel);
+    tr.appendChild(tdStatut);
+
+    tbody.appendChild(tr);
+  });
 });
 
 // ── RENDER EXPÉDITION ────────────────────────────────────
@@ -427,7 +457,7 @@ onValue(refExp, snap => {
   document.getElementById('table-exp').style.display = 'table';
   const data = [];
   snap.forEach(child => data.push({ key: child.key, ...child.val() }));
-  data.sort((a,b) => b.key.localeCompare(a.key));
+  data.sort((a,b) => String(b.key).localeCompare(String(a.key)));
 
   const pending = data.filter(d => d.statut !== 'Traite').length;
   const countEl = document.getElementById('count-exp');
@@ -436,30 +466,49 @@ onValue(refExp, snap => {
 
   const tbody = document.getElementById('tbody-exp');
   const empty = document.getElementById('empty-exp');
+  tbody.innerHTML = '';
+
   if (data.length === 0) {
-    tbody.innerHTML = '';
     empty.style.display = 'block';
-    document.getElementById('table-exp').style.display = 'none';
     return;
   }
   empty.style.display = 'none';
-  tbody.innerHTML = data.map(d => `
-    <tr class="${d.statut==='Traite' ? 'done' : ''}">
-      <td>${d.date}</td>
-      <td><strong>${d.oper}</strong></td>
-      <td><strong>${d.cde}</strong></td>
-      <td>${d.ofe||'—'}</td>
-      <td>${d.bl||'—'}</td>
-      <td>${d.dest}</td>
-      <td>${d.mode}</td>
-      <td>
-        <select class="statut-sel" onchange="updateStatut('exp','${d.key}',this.value)">
-          <option value="A traiter" ${d.statut==='A traiter'?'selected':''}>🔴 A traiter</option>
-          <option value="En cours"  ${d.statut==='En cours' ?'selected':''}>🟡 En cours</option>
-          <option value="Traite"    ${d.statut==='Traite'   ?'selected':''}>✅ Traité</option>
-        </select>
-      </td>
-    </tr>`).join('');
+
+  data.forEach(d => {
+    const tr = document.createElement('tr');
+    if (d.statut === 'Traite') tr.className = 'done';
+
+    const fields = [d.date, d.oper, d.cde, d.ofe || '\u2014', d.bl || '\u2014', d.dest, d.mode];
+    const bold = [false, true, true, false, false, false, false];
+
+    fields.forEach((val, i) => {
+      const td = document.createElement('td');
+      if (bold[i]) {
+        const s = document.createElement('strong');
+        s.textContent = val || '';
+        td.appendChild(s);
+      } else {
+        td.textContent = val || '';
+      }
+      tr.appendChild(td);
+    });
+
+    const tdStatut = document.createElement('td');
+    const sel = document.createElement('select');
+    sel.className = 'statut-sel';
+    sel.addEventListener('change', () => updateStatut('exp', d.key, sel.value));
+    ['A traiter','En cours','Traite'].forEach(val => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = (val==='A traiter'?'\ud83d\udd34 ':val==='En cours'?'\ud83d\udfe1 ':'\u2705 ') + val;
+      if (d.statut === val) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    tdStatut.appendChild(sel);
+    tr.appendChild(tdStatut);
+
+    tbody.appendChild(tr);
+  });
 });
 
 // ── NETTOYAGE AUTO 12H APRES TRAITE ─────────────────────
