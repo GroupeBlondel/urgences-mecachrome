@@ -83,6 +83,17 @@ tbody tr.cancelled td { color:var(--red); }
 .day-detail { display:none; border-top:1px solid var(--gray2); }
 .day-detail.open { display:block; }
 
+.month-card { background:var(--white); border-radius:14px; margin-bottom:16px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+.month-header { padding:18px 22px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; background:var(--navy); }
+.month-header:hover { background:#142a52; }
+.month-title { font-size:16px; font-weight:700; color:#fff; text-transform:capitalize; }
+.month-sub { font-size:12px; color:var(--blue-l); margin-top:2px; }
+.month-count { background:rgba(255,255,255,0.15); color:#fff; font-size:13px; font-weight:700; padding:4px 12px; border-radius:50px; }
+.month-chevron { transition:transform .2s; font-size:14px; color:#fff; }
+.month-chevron.open { transform:rotate(90deg); }
+.month-detail { display:none; padding:16px; background:var(--gray); }
+.month-detail.open { display:block; }
+
 @media(max-width:600px){
   .table-wrap{margin:0 0 16px;}
   nav{padding:0 12px;}
@@ -155,7 +166,7 @@ tbody tr.cancelled td { color:var(--red); }
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Date</th><th>Opérateur</th><th>CFR</th><th>STT/FRS</th><th>OF</th><th>Statut</th><th>Archive</th></tr></thead>
+      <thead><tr><th>Date</th><th>Opérateur</th><th>CFR</th><th>STT/FRS</th><th>OF</th><th>Statut</th><th>Durée</th><th>Archive</th></tr></thead>
       <tbody id="tbody-rec"></tbody>
     </table>
     <div id="empty-rec" class="empty-state" style="display:none">Aucune urgence en cours</div>
@@ -169,7 +180,7 @@ tbody tr.cancelled td { color:var(--red); }
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Date</th><th>Opérateur</th><th>CDECLI/CFR</th><th>OF</th><th>BL</th><th>Destinataire</th><th>Mode</th><th>Statut</th><th>Archive</th></tr></thead>
+      <thead><tr><th>Date</th><th>Opérateur</th><th>CDECLI/CFR</th><th>OF</th><th>BL</th><th>Destinataire</th><th>Mode</th><th>Statut</th><th>Durée</th><th>Archive</th></tr></thead>
       <tbody id="tbody-exp"></tbody>
     </table>
     <div id="empty-exp" class="empty-state" style="display:none">Aucune urgence en cours</div>
@@ -260,7 +271,7 @@ window.envoyer = async function() {
       const ofr = document.getElementById('f-ofr').value.trim();
       if (!cfr) { document.getElementById('f-cfr').classList.add('error'); btn.disabled=false; return; }
       if (!stt) { document.getElementById('f-stt').classList.add('error'); btn.disabled=false; return; }
-      await push(refRec, { date: date, oper: oper, cfr: cfr, stt: stt, ofr: ofr, statut: 'A traiter' });
+      await push(refRec, { date: date, oper: oper, cfr: cfr, stt: stt, ofr: ofr, statut: 'A traiter', ts_creation: Date.now() });
       toast('Réception envoyée !');
     } else {
       const cde  = document.getElementById('f-cde').value.trim();
@@ -271,7 +282,7 @@ window.envoyer = async function() {
       if (!cde)  { document.getElementById('f-cde').classList.add('error'); btn.disabled=false; return; }
       if (!dest) { document.getElementById('f-dest').classList.add('error'); btn.disabled=false; return; }
       if (!mode) { document.getElementById('f-mode').classList.add('error'); btn.disabled=false; return; }
-      await push(refExp, { date: date, oper: oper, cde: cde, ofe: ofe, bl: bl, dest: dest, mode: mode, statut: 'A traiter' });
+      await push(refExp, { date: date, oper: oper, cde: cde, ofe: ofe, bl: bl, dest: dest, mode: mode, statut: 'A traiter', ts_creation: Date.now() });
       toast('Expédition envoyée !');
     }
     ['f-type','f-oper','f-cfr','f-stt','f-ofr','f-cde','f-dest','f-mode','f-bl','f-ofe']
@@ -292,12 +303,13 @@ window.archiver = async function(type, key) {
   if (!data) return;
 
   let detailsTxt, refTxt;
+  const dureeTxt = formatDuree(data);
   if (type === 'rec') {
     refTxt = data.cfr;
-    detailsTxt = 'STT/FRS: ' + (data.stt||'') + ' | OF: ' + (data.ofr||'-');
+    detailsTxt = 'STT/FRS: ' + (data.stt||'') + ' | OF: ' + (data.ofr||'-') + ' | Duree de traitement: ' + dureeTxt;
   } else {
     refTxt = data.cde;
-    detailsTxt = 'Dest: ' + (data.dest||'') + ' | Mode: ' + (data.mode||'') + ' | BL: ' + (data.bl||'-') + ' | OF: ' + (data.ofe||'-');
+    detailsTxt = 'Dest: ' + (data.dest||'') + ' | Mode: ' + (data.mode||'') + ' | BL: ' + (data.bl||'-') + ' | OF: ' + (data.ofe||'-') + ' | Duree de traitement: ' + dureeTxt;
   }
 
   await push(refArc, {
@@ -307,12 +319,34 @@ window.archiver = async function(type, key) {
     oper: data.oper,
     ref: refTxt,
     details: detailsTxt,
+    duree: dureeTxt,
     archive_le: new Date().toLocaleDateString('fr-FR') + ' ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})
   });
 
   await remove(ref(db, sourcePath + key));
   toast('Urgence archivée !');
 };
+
+function formatDuree(d) {
+  if (!d.ts_creation) return '—';
+
+  const endTs = (d.statut === 'Traite' || d.statut === 'Annule') ? d.ts_traite : Date.now();
+  if (!endTs) return '—';
+
+  let ms = endTs - d.ts_creation;
+  if (ms < 0) ms = 0;
+
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  let label = '';
+  if (hours > 0) label = hours + 'h ' + minutes + 'min';
+  else label = minutes + 'min';
+
+  const isOngoing = !(d.statut === 'Traite' || d.statut === 'Annule');
+  return isOngoing ? label + ' (en cours)' : label;
+}
 
 function renderTable(snapshotVal, tbodyId, emptyId, countId, columns, type) {
   const tbody = document.getElementById(tbodyId);
@@ -374,6 +408,10 @@ function renderTable(snapshotVal, tbodyId, emptyId, countId, columns, type) {
     tdStatut.appendChild(sel);
     tr.appendChild(tdStatut);
 
+    const tdDuree = document.createElement('td');
+    tdDuree.textContent = formatDuree(d);
+    tr.appendChild(tdDuree);
+
     const tdArchive = document.createElement('td');
     const btnA = document.createElement('button');
     btnA.className = 'btn-archive';
@@ -391,6 +429,7 @@ function renderTable(snapshotVal, tbodyId, emptyId, countId, columns, type) {
 }
 
 let knownKeysRec = null;
+let lastValRec = null;
 onValue(refRec, function(snapshot) {
   const val = snapshot.val();
   const currentKeys = val ? Object.keys(val) : [];
@@ -402,12 +441,19 @@ onValue(refRec, function(snapshot) {
     }
   }
   knownKeysRec = currentKeys;
+  lastValRec = val;
 
   renderTable(val, 'tbody-rec', 'empty-rec', 'count-rec', ['date','oper','cfr','stt','ofr'], 'rec');
 
   document.querySelectorAll('#tbody-rec .statut-sel').forEach(function(sel) {
     sel.addEventListener('change', function() {
-      update(ref(db, 'urgences_reception/' + sel.dataset.key), { statut: sel.value });
+      const updates = { statut: sel.value };
+      if (sel.value === 'Traite' || sel.value === 'Annule') {
+        updates.ts_traite = Date.now();
+      } else {
+        updates.ts_traite = null;
+      }
+      update(ref(db, 'urgences_reception/' + sel.dataset.key), updates);
     });
   });
   document.querySelectorAll('#tbody-rec .btn-archive').forEach(function(btn) {
@@ -416,6 +462,7 @@ onValue(refRec, function(snapshot) {
 });
 
 let knownKeysExp = null;
+let lastValExp = null;
 onValue(refExp, function(snapshot) {
   const val = snapshot.val();
   const currentKeys = val ? Object.keys(val) : [];
@@ -427,18 +474,63 @@ onValue(refExp, function(snapshot) {
     }
   }
   knownKeysExp = currentKeys;
+  lastValExp = val;
 
   renderTable(val, 'tbody-exp', 'empty-exp', 'count-exp', ['date','oper','cde','ofe','bl','dest','mode'], 'exp');
 
   document.querySelectorAll('#tbody-exp .statut-sel').forEach(function(sel) {
     sel.addEventListener('change', function() {
-      update(ref(db, 'urgences_expedition/' + sel.dataset.key), { statut: sel.value });
+      const updates = { statut: sel.value };
+      if (sel.value === 'Traite' || sel.value === 'Annule') {
+        updates.ts_traite = Date.now();
+      } else {
+        updates.ts_traite = null;
+      }
+      update(ref(db, 'urgences_expedition/' + sel.dataset.key), updates);
     });
   });
   document.querySelectorAll('#tbody-exp .btn-archive').forEach(function(btn) {
     btn.addEventListener('click', function() { archiver('exp', btn.dataset.key); });
   });
 });
+
+// Rafraichir l'affichage de la duree "en cours" toutes les 30 secondes
+setInterval(function() {
+  if (lastValRec) {
+    renderTable(lastValRec, 'tbody-rec', 'empty-rec', 'count-rec', ['date','oper','cfr','stt','ofr'], 'rec');
+    document.querySelectorAll('#tbody-rec .statut-sel').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        const updates = { statut: sel.value };
+        if (sel.value === 'Traite' || sel.value === 'Annule') {
+          updates.ts_traite = Date.now();
+        } else {
+          updates.ts_traite = null;
+        }
+        update(ref(db, 'urgences_reception/' + sel.dataset.key), updates);
+      });
+    });
+    document.querySelectorAll('#tbody-rec .btn-archive').forEach(function(btn) {
+      btn.addEventListener('click', function() { archiver('rec', btn.dataset.key); });
+    });
+  }
+  if (lastValExp) {
+    renderTable(lastValExp, 'tbody-exp', 'empty-exp', 'count-exp', ['date','oper','cde','ofe','bl','dest','mode'], 'exp');
+    document.querySelectorAll('#tbody-exp .statut-sel').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        const updates = { statut: sel.value };
+        if (sel.value === 'Traite' || sel.value === 'Annule') {
+          updates.ts_traite = Date.now();
+        } else {
+          updates.ts_traite = null;
+        }
+        update(ref(db, 'urgences_expedition/' + sel.dataset.key), updates);
+      });
+    });
+    document.querySelectorAll('#tbody-exp .btn-archive').forEach(function(btn) {
+      btn.addEventListener('click', function() { archiver('exp', btn.dataset.key); });
+    });
+  }
+}, 30000);
 
 onValue(refArc, function(snapshot) {
   const val = snapshot.val();
@@ -517,7 +609,7 @@ function renderHistorique(items, parseDateFr) {
   while (container.firstChild) container.removeChild(container.firstChild);
 
   if (items.length === 0) {
-    countEl.textContent = '0 jour';
+    countEl.textContent = '0 mois';
     const p = document.createElement('p');
     p.style.textAlign = 'center';
     p.style.color = 'var(--muted)';
@@ -532,124 +624,201 @@ function renderHistorique(items, parseDateFr) {
     return parts || 'Inconnu';
   }
 
-  const groups = {};
-  items.forEach(function(d) {
-    const key = dayKeyOf(d);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(d);
-  });
-
-  const dayKeys = Object.keys(groups).sort(function(a, b) {
-    return parseDateFr(b + ' 00:00') - parseDateFr(a + ' 00:00');
-  });
-
-  countEl.textContent = dayKeys.length + ' jour(s)';
+  function monthKeyOf(dayKey) {
+    const dparts = dayKey.split('/');
+    if (dparts.length !== 3) return 'Inconnu';
+    return dparts[1] + '/' + dparts[2];
+  }
 
   const moisNoms = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
-  dayKeys.forEach(function(dayKey, idx) {
-    const dayItems = groups[dayKey];
-    const dparts = dayKey.split('/');
-    let label = dayKey;
-    if (dparts.length === 3) {
-      const d = parseInt(dparts[0], 10);
-      const m = parseInt(dparts[1], 10) - 1;
-      const y = dparts[2];
-      label = d + ' ' + (moisNoms[m] || '') + ' ' + y;
-    }
+  // Regrouper par jour d'abord
+  const dayGroups = {};
+  items.forEach(function(d) {
+    const key = dayKeyOf(d);
+    if (!dayGroups[key]) dayGroups[key] = [];
+    dayGroups[key].push(d);
+  });
 
-    const recCount = dayItems.filter(function(d) { return d.typeOrigine === 'Reception'; }).length;
-    const expCount = dayItems.filter(function(d) { return d.typeOrigine === 'Expedition'; }).length;
-    const cancelCount = dayItems.filter(function(d) { return d.statutOrigine === 'Annule'; }).length;
+  // Puis regrouper les jours par mois
+  const monthGroups = {};
+  Object.keys(dayGroups).forEach(function(dayKey) {
+    const mKey = monthKeyOf(dayKey);
+    if (!monthGroups[mKey]) monthGroups[mKey] = {};
+    monthGroups[mKey][dayKey] = dayGroups[dayKey];
+  });
 
-    const card = document.createElement('div');
-    card.className = 'day-card';
+  const monthKeys = Object.keys(monthGroups).sort(function(a, b) {
+    const aParts = a.split('/'); const bParts = b.split('/');
+    if (aParts.length !== 2 || bParts.length !== 2) return 0;
+    const aTime = parseInt(aParts[1], 10) * 100 + parseInt(aParts[0], 10);
+    const bTime = parseInt(bParts[1], 10) * 100 + parseInt(bParts[0], 10);
+    return bTime - aTime;
+  });
 
-    const header = document.createElement('div');
-    header.className = 'day-header';
+  countEl.textContent = monthKeys.length + ' mois';
 
-    const left = document.createElement('div');
-    const title = document.createElement('div');
-    title.className = 'day-title';
-    title.textContent = label;
-    const sub = document.createElement('div');
-    sub.className = 'day-sub';
-    sub.textContent = recCount + ' réception(s), ' + expCount + ' expédition(s)' + (cancelCount > 0 ? ', ' + cancelCount + ' annulée(s)' : '');
-    left.appendChild(title);
-    left.appendChild(sub);
-
-    const right = document.createElement('div');
-    right.style.display = 'flex';
-    right.style.alignItems = 'center';
-    right.style.gap = '10px';
-    const countBadge = document.createElement('span');
-    countBadge.className = 'day-count';
-    countBadge.textContent = dayItems.length + ' urgence(s)';
-    const chevron = document.createElement('span');
-    chevron.className = 'day-chevron';
-    chevron.textContent = '▶';
-    right.appendChild(countBadge);
-    right.appendChild(chevron);
-
-    header.appendChild(left);
-    header.appendChild(right);
-
-    const detail = document.createElement('div');
-    detail.className = 'day-detail';
-
-    const table = document.createElement('table');
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    ['Type','Statut final','Date','Opérateur','Réf.','Détails'].forEach(function(h) {
-      const th = document.createElement('th');
-      th.textContent = h;
-      headRow.appendChild(th);
-    });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    const tbodyDay = document.createElement('tbody');
-    dayItems.forEach(function(d) {
-      const tr = document.createElement('tr');
-
-      const tdType = document.createElement('td');
-      const badge = document.createElement('span');
-      badge.className = 'badge-type ' + (d.typeOrigine === 'Reception' ? 'rec' : 'exp');
-      badge.textContent = d.typeOrigine === 'Reception' ? 'Réception' : 'Expédition';
-      tdType.appendChild(badge);
-      tr.appendChild(tdType);
-
-      const tdStatutOrig = document.createElement('td');
-      const badgeStatut = document.createElement('span');
-      const isCancelled = d.statutOrigine === 'Annule';
-      badgeStatut.className = 'badge-statut ' + (isCancelled ? 'cancel' : 'ok');
-      badgeStatut.textContent = isCancelled ? 'Annulée' : 'Traitée';
-      tdStatutOrig.appendChild(badgeStatut);
-      tr.appendChild(tdStatutOrig);
-
-      const tdDate = document.createElement('td'); tdDate.textContent = d.date || ''; tr.appendChild(tdDate);
-      const tdOper = document.createElement('td'); tdOper.textContent = d.oper || ''; tr.appendChild(tdOper);
-      const tdRef  = document.createElement('td'); tdRef.textContent = d.ref || ''; tr.appendChild(tdRef);
-      const tdDet  = document.createElement('td'); tdDet.textContent = d.details || ''; tr.appendChild(tdDet);
-
-      tbodyDay.appendChild(tr);
-    });
-    table.appendChild(tbodyDay);
-
-    const tableWrap = document.createElement('div');
-    tableWrap.style.overflowX = 'auto';
-    tableWrap.appendChild(table);
-    detail.appendChild(tableWrap);
-
-    header.addEventListener('click', function() {
-      const isOpen = detail.classList.contains('open');
-      detail.classList.toggle('open', !isOpen);
-      chevron.classList.toggle('open', !isOpen);
+  monthKeys.forEach(function(monthKey) {
+    const dayGroupsInMonth = monthGroups[monthKey];
+    const dayKeysInMonth = Object.keys(dayGroupsInMonth).sort(function(a, b) {
+      return parseDateFr(b + ' 00:00') - parseDateFr(a + ' 00:00');
     });
 
-    card.appendChild(header);
-    card.appendChild(detail);
-    container.appendChild(card);
+    const mParts = monthKey.split('/');
+    const monthLabel = mParts.length === 2 ? (moisNoms[parseInt(mParts[0], 10) - 1] || monthKey) + ' ' + mParts[1] : monthKey;
+
+    let totalInMonth = 0;
+    dayKeysInMonth.forEach(function(dk) { totalInMonth += dayGroupsInMonth[dk].length; });
+
+    const monthCard = document.createElement('div');
+    monthCard.className = 'month-card';
+
+    const monthHeader = document.createElement('div');
+    monthHeader.className = 'month-header';
+
+    const mLeft = document.createElement('div');
+    const mTitle = document.createElement('div');
+    mTitle.className = 'month-title';
+    mTitle.textContent = monthLabel;
+    const mSub = document.createElement('div');
+    mSub.className = 'month-sub';
+    mSub.textContent = dayKeysInMonth.length + ' jour(s) avec urgences';
+    mLeft.appendChild(mTitle);
+    mLeft.appendChild(mSub);
+
+    const mRight = document.createElement('div');
+    mRight.style.display = 'flex';
+    mRight.style.alignItems = 'center';
+    mRight.style.gap = '10px';
+    const mCountBadge = document.createElement('span');
+    mCountBadge.className = 'month-count';
+    mCountBadge.textContent = totalInMonth + ' urgence(s)';
+    const mChevron = document.createElement('span');
+    mChevron.className = 'month-chevron';
+    mChevron.textContent = '▶';
+    mRight.appendChild(mCountBadge);
+    mRight.appendChild(mChevron);
+
+    monthHeader.appendChild(mLeft);
+    monthHeader.appendChild(mRight);
+
+    const monthDetail = document.createElement('div');
+    monthDetail.className = 'month-detail';
+
+    dayKeysInMonth.forEach(function(dayKey) {
+      const dayItems = dayGroupsInMonth[dayKey];
+      const dparts = dayKey.split('/');
+      let label = dayKey;
+      if (dparts.length === 3) {
+        const d = parseInt(dparts[0], 10);
+        const m = parseInt(dparts[1], 10) - 1;
+        const y = dparts[2];
+        label = d + ' ' + (moisNoms[m] || '') + ' ' + y;
+      }
+
+      const recCount = dayItems.filter(function(d) { return d.typeOrigine === 'Reception'; }).length;
+      const expCount = dayItems.filter(function(d) { return d.typeOrigine === 'Expedition'; }).length;
+      const cancelCount = dayItems.filter(function(d) { return d.statutOrigine === 'Annule'; }).length;
+
+      const card = document.createElement('div');
+      card.className = 'day-card';
+
+      const header = document.createElement('div');
+      header.className = 'day-header';
+
+      const left = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'day-title';
+      title.textContent = label;
+      const sub = document.createElement('div');
+      sub.className = 'day-sub';
+      sub.textContent = recCount + ' réception(s), ' + expCount + ' expédition(s)' + (cancelCount > 0 ? ', ' + cancelCount + ' annulée(s)' : '');
+      left.appendChild(title);
+      left.appendChild(sub);
+
+      const right = document.createElement('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '10px';
+      const countBadge = document.createElement('span');
+      countBadge.className = 'day-count';
+      countBadge.textContent = dayItems.length + ' urgence(s)';
+      const chevron = document.createElement('span');
+      chevron.className = 'day-chevron';
+      chevron.textContent = '▶';
+      right.appendChild(countBadge);
+      right.appendChild(chevron);
+
+      header.appendChild(left);
+      header.appendChild(right);
+
+      const detail = document.createElement('div');
+      detail.className = 'day-detail';
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['Type','Statut final','Date','Opérateur','Réf.','Détails'].forEach(function(h) {
+        const th = document.createElement('th');
+        th.textContent = h;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbodyDay = document.createElement('tbody');
+      dayItems.forEach(function(d) {
+        const tr = document.createElement('tr');
+
+        const tdType = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = 'badge-type ' + (d.typeOrigine === 'Reception' ? 'rec' : 'exp');
+        badge.textContent = d.typeOrigine === 'Reception' ? 'Réception' : 'Expédition';
+        tdType.appendChild(badge);
+        tr.appendChild(tdType);
+
+        const tdStatutOrig = document.createElement('td');
+        const badgeStatut = document.createElement('span');
+        const isCancelled = d.statutOrigine === 'Annule';
+        badgeStatut.className = 'badge-statut ' + (isCancelled ? 'cancel' : 'ok');
+        badgeStatut.textContent = isCancelled ? 'Annulée' : 'Traitée';
+        tdStatutOrig.appendChild(badgeStatut);
+        tr.appendChild(tdStatutOrig);
+
+        const tdDate = document.createElement('td'); tdDate.textContent = d.date || ''; tr.appendChild(tdDate);
+        const tdOper = document.createElement('td'); tdOper.textContent = d.oper || ''; tr.appendChild(tdOper);
+        const tdRef  = document.createElement('td'); tdRef.textContent = d.ref || ''; tr.appendChild(tdRef);
+        const tdDet  = document.createElement('td'); tdDet.textContent = d.details || ''; tr.appendChild(tdDet);
+
+        tbodyDay.appendChild(tr);
+      });
+      table.appendChild(tbodyDay);
+
+      const tableWrap = document.createElement('div');
+      tableWrap.style.overflowX = 'auto';
+      tableWrap.appendChild(table);
+      detail.appendChild(tableWrap);
+
+      header.addEventListener('click', function() {
+        const isOpen = detail.classList.contains('open');
+        detail.classList.toggle('open', !isOpen);
+        chevron.classList.toggle('open', !isOpen);
+      });
+
+      card.appendChild(header);
+      card.appendChild(detail);
+      monthDetail.appendChild(card);
+    });
+
+    monthHeader.addEventListener('click', function() {
+      const isOpen = monthDetail.classList.contains('open');
+      monthDetail.classList.toggle('open', !isOpen);
+      mChevron.classList.toggle('open', !isOpen);
+    });
+
+    monthCard.appendChild(monthHeader);
+    monthCard.appendChild(monthDetail);
+    container.appendChild(monthCard);
   });
 }
 
@@ -666,19 +835,34 @@ function playAlert() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const now = audioCtx.currentTime;
-    [0, 0.18].forEach(function(offset) {
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.7, now);
+    masterGain.connect(audioCtx.destination);
+
+    // Sirene alternant deux frequences, duree totale max 2s
+    const beepDuration = 0.4;
+    const pauseDuration = 0.08;
+    const totalBeeps = 4;
+
+    for (let i = 0; i < totalBeeps; i++) {
+      const offset = i * (beepDuration + pauseDuration);
+      const freq = (i % 2 === 0) ? 1200 : 900;
+
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, now + offset);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, now + offset);
+
       gain.gain.setValueAtTime(0.0001, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.3, now + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.16);
+      gain.gain.exponentialRampToValueAtTime(1, now + offset + 0.03);
+      gain.gain.setValueAtTime(1, now + offset + beepDuration - 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + beepDuration);
+
       osc.connect(gain);
-      gain.connect(audioCtx.destination);
+      gain.connect(masterGain);
       osc.start(now + offset);
-      osc.stop(now + offset + 0.2);
-    });
+      osc.stop(now + offset + beepDuration);
+    }
   } catch(e) { /* audio non disponible, on ignore */ }
 }
 
@@ -687,6 +871,7 @@ document.addEventListener('click', function unlockAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   document.removeEventListener('click', unlockAudio);
 }, { once: true });
+
 
 // ── MODE ECRAN TV (parametres URL) ──────────────────────
 // ?page=reception ou ?page=expedition : ouvre directement cet onglet
